@@ -5,11 +5,6 @@
 Claude Code, Codex and pi side by side on your own machine, with one dashboard,
 memory that carries between sessions, and a safe place for API keys.
 
-This repository is where causeway is published: the installers, the prebuilt
-tarballs and zips for macOS, Linux and Windows, the `SHA256SUMS` they are checked
-against, and the notes for each version. The source lives in a separate
-repository.
-
 ## Install
 
 macOS and Linux:
@@ -24,13 +19,14 @@ Windows, in a normal PowerShell window (not "Run as administrator"):
 irm https://github.com/ddfourtwo/causeway-releases/releases/latest/download/install.ps1 | iex
 ```
 
-The installer downloads the latest release, checks it against `SHA256SUMS`, then hands over to `causeway-setup`, which installs everything, walks you through the sign-ins and checks each part. If it stops, run the same command again: it resumes.
-
-You supply `git`, `curl` and `tar`. The installer fetches `tmux`, Node and the
+The binaries are prebuilt and checksum-verified, so there is nothing to compile.
+You supply `git`, `curl` and `tar`; the installer fetches `tmux`, Node and the
 agent programs if they are missing, and asks before it changes any of your own
-files (`~/.claude`, `~/.codex`, `~/.pi`, shell startup files).
+files (`~/.claude`, `~/.codex`, `~/.pi`, shell startup files). If an install
+stops part-way, run the same command again: it resumes.
 
-To pin a version, set `CAUSEWAY_VERSION` (e.g. `CAUSEWAY_VERSION=1.9.0`) before running it.
+When it finishes, the background services are running and your browser opens the
+dashboard at <http://localhost:18089>.
 
 To leave a piece out, put the option on the `bash` rather than on the `curl`:
 
@@ -45,8 +41,8 @@ curl -fsSL https://github.com/ddfourtwo/causeway-releases/releases/latest/downlo
 | `CAUSEWAY_NO_AGENT_CONFIG=1` | changes nothing in `~/.claude`, `~/.codex`, `~/.pi` or your shell files |
 | `CAUSEWAY_YES=1` | asks no questions, uses the recommended choices |
 
-When it finishes the background services are running and your browser opens the
-dashboard at <http://localhost:18089>.
+To pin a version, set `CAUSEWAY_VERSION` (for example `CAUSEWAY_VERSION=1.9.0`)
+before running it.
 
 ## Your first session
 
@@ -67,12 +63,23 @@ dashboard at <http://localhost:18089>.
   one, per project.
 - **Work that runs itself.** Schedules and routines fire while you are away and report
   back when they are done.
-- **An assistant that remembers you.** One persistent session can learn how you decide, take
-  your messages, and pick work back up while you are away.
+- **An assistant that remembers you.** One persistent session can learn how you decide,
+  take your messages, and pick work back up while you are away.
 - **Keys the agent cannot read.** The credential vault holds your API keys, scopes each one
   to named domains, and scrubs it out of anything returned.
 - **A phone counts as a terminal.** Messages from Telegram, Signal, WhatsApp or Buzz reach
   a session, and its replies go back to you there.
+
+## How it fits together
+
+One daemon and one dashboard run on your machine. Every session is a tmux pane the daemon
+owns, and the agent you chose is an ordinary CLI running inside that pane, which is why
+you can watch it and why nothing is hidden behind a private protocol. Behind it: a Go
+daemon on port 18088 that owns the sessions, a Svelte dashboard on 18089, an MCP server
+that gives the agents their tools, a bash CLI, and the credential vault.
+
+The [technical reference](docs/technical-reference.md) has the parts, the ports, where
+everything lives on disk, every command, and what to do when a session will not start.
 
 ## Stay up to date
 
@@ -89,11 +96,6 @@ macOS and Linux:
 ```bash
 curl -fsSL https://github.com/ddfourtwo/causeway-releases/releases/latest/download/uninstall | bash
 ```
-
-## Learn more
-
-- [Technical reference](docs/technical-reference.md) — the parts, the ports, where
-  things live on disk, every command, and what to do when a session will not start.
 
 ## License
 
