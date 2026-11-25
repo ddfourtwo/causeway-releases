@@ -1,0 +1,14 @@
+{
+  "id": "causeway.agents",
+  "name": "Causeway",
+  "apiVersion": 1,
+  "description": "Run Causeway agents in Buzz: each conversation an agent is in is one continuing Causeway session in its project.",
+  "discovery": {
+    "category": "agents",
+    "tags": ["code", "coding-agents"]
+  },
+  "host": {
+    "processes": [{ "id": "causeway", "program": "causeway-acp" }],
+    "files": true
+  }
+}
