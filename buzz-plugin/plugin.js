@@ -47,6 +47,19 @@ export function config(raw) {
 export const validWorkspace = (path) =>
   /^(~(\/|$)|\/)/.test(String(path ?? "").trim());
 
+/** A message in a DM that is not in a thread is answered in the DM itself.
+ * The kit threads every reply under the message (it puts a conversation at
+ * the top level only in a Solo chat), which in a DM reads as the agent
+ * walking off into a side thread. A whole-conversation key under thread
+ * scope is a DM: only a DM or a Solo chat folds to one conversation then. */
+export function answersAtTopLevel(delivery, conversation, scope) {
+  if (conversation.topLevel || conversation.root) return false;
+  if (scope !== "thread" || conversation.key !== conversation.channel) return false;
+  const event = delivery.trigger?.type === "mention" ? delivery.trigger.event : undefined;
+  if (!event) return false;
+  return !event.tags.some(([name, , , marker]) => name === "e" && (marker === "root" || marker === "reply"));
+}
+
 const message = (error) =>
   error instanceof Error ? error.message : String(error);
 
@@ -267,6 +280,17 @@ export class Runtime {
     return session;
   }
 
+  post(delivery, conversation, scope, text, options) {
+    const { agent } = delivery;
+    if (typeof agent.publish === "function" && answersAtTopLevel(delivery, conversation, scope))
+      return agent.publish({
+        kind: 9,
+        content: text,
+        tags: [["h", conversation.channel], ...(options?.notifyOwner ? [["p", agent.owner]] : [])],
+      });
+    return this.kit.reply(agent, conversation, text, options);
+  }
+
   async run(delivery) {
     const cfg = config(delivery.config);
     const { agent } = delivery;
@@ -274,7 +298,7 @@ export class Runtime {
     if (!conversation) return;
     delivery.acknowledged?.();
     if (!validWorkspace(cfg.workspace)) {
-      await this.kit.reply(agent, conversation, NO_WORKSPACE, {
+      await this.post(delivery, conversation, cfg.scope, NO_WORKSPACE, {
         notifyOwner: true,
       });
       return;
@@ -314,15 +338,15 @@ export class Runtime {
         session.prompted = true;
         const reply = await bridge.prompt(sessionId, text);
         this.saveCursor(agent, conversation, prompt.cursor);
-        if (reply.trim()) await this.kit.reply(agent, conversation, reply.trim());
+        if (reply.trim()) await this.post(delivery, conversation, cfg.scope, reply.trim());
         return { ok: true };
       });
       session.tail = turn.catch(() => undefined);
       return turn;
     })().catch(async (error) => {
       const reason = message(error);
-      await this.kit
-        .reply(agent, conversation, `Causeway could not answer: ${reason}`, {
+      await this
+        .post(delivery, conversation, cfg.scope, `Causeway could not answer: ${reason}`, {
           notifyOwner: true,
         })
         .catch(() => undefined);
